@@ -1,0 +1,20 @@
+# Vivado generated
+*.cache/
+*.hw/
+*.ip_user_files/
+*.sim/
+*.runs/
+*.srcs/
+*.xpr
+*.jou
+*.log
+*.str
+*.dcp
+*.bit
+.Xil/
+
+# Excepciones: sí trackear
+!constraints/*.xdc
+!scripts/*.tcl
+!rtl/**/*.v
+!sim/**/*.v
