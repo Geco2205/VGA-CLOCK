@@ -1,108 +1,77 @@
 // ============================================================
 // Módulo: hour_control
-// Descripción: Controla la hora actual, maneja ajuste mediante
-//              switches y botones con debounce y sincronización
+// Descripción: Controla la hora actual. Instancia módulos de
+//              sincronización, debounce y contador de segundos.
+//              Maneja máquina de estados y lógica de hora.
 // ============================================================
 module hour_control (
-    input  wire       clk,      // Reloj 100 MHz
-    input  wire       rst,      // Reset activo alto
-    input  wire [8:0] sw,       // SW[7:0]=ajuste, SW[8]=modo ajuste
-    input  wire       btn_c,    // Avanzar estado
-    input  wire       btn_r,    // Retroceder estado
-    output reg  [3:0] hora_dec, // Decenas de hora (0-2)
-    output reg  [3:0] hora_uni, // Unidades de hora (0-9)
-    output reg  [3:0] min_dec,  // Decenas de minuto (0-5)
-    output reg  [3:0] min_uni,  // Unidades de minuto (0-9)
-    output reg  [3:0] seg_dec,  // Decenas de segundo
-    output reg  [3:0] seg_uni,  // Unidades de segundo
-    output reg  [1:0] estado    // 0=SET_HOURS,1=SET_MIN,2=RUN
+    input  wire       clk,
+    input  wire       rst,
+    input  wire [8:0] sw,
+    input  wire       btn_c,
+    input  wire       btn_r,
+    output reg  [3:0] hora_dec,
+    output reg  [3:0] hora_uni,
+    output reg  [3:0] min_dec,
+    output reg  [3:0] min_uni,
+    output reg  [3:0] seg_dec,
+    output reg  [3:0] seg_uni,
+    output reg  [1:0] estado
 );
 
-// ============================================================
-// Parámetros de estado
-// ============================================================
 localparam SET_HOURS = 2'd0;
 localparam SET_MIN   = 2'd1;
 localparam RUN       = 2'd2;
 
 // ============================================================
-// Contador para generar pulso de 1 segundo
-// NOTA: En simulación usamos 100 ciclos para ver resultados
-//       rápido. Para síntesis en FPGA cambiar a 99_999_999
+// Señales internas
 // ============================================================
-reg [26:0] cnt_seg;
-reg        pulso_seg;
-
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        cnt_seg   <= 0;
-        pulso_seg <= 0;
-    end else begin
-        if (cnt_seg == 27'd99) begin  // <-- cambiar a 99_999_999 para FPGA
-            cnt_seg   <= 0;
-            pulso_seg <= 1;
-        end else begin
-            cnt_seg   <= cnt_seg + 1;
-            pulso_seg <= 0;
-        end
-    end
-end
+wire btn_c_sync, btn_r_sync;  // botones sincronizados
+wire btn_c_pulso, btn_r_pulso; // pulsos limpios sin rebote
+wire pulso_seg;                // pulso de 1 segundo
 
 // ============================================================
-// Doble FF sincronizador + detección de flanco para botones
+// Instancias de sincronizadores (uno por botón)
 // ============================================================
-reg btn_c_s0, btn_c_s1, btn_c_s2;
-reg btn_r_s0, btn_r_s1, btn_r_s2;
-wire btn_c_pulso = btn_c_s1 & ~btn_c_s2;
-wire btn_r_pulso = btn_r_s1 & ~btn_r_s2;
+sincronizador sync_btnc (
+    .clk  (clk),
+    .rst  (rst),
+    .din  (btn_c),
+    .dout (btn_c_sync)
+);
 
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        btn_c_s0 <= 0; btn_c_s1 <= 0; btn_c_s2 <= 0;
-        btn_r_s0 <= 0; btn_r_s1 <= 0; btn_r_s2 <= 0;
-    end else begin
-        btn_c_s0 <= btn_c; btn_c_s1 <= btn_c_s0; btn_c_s2 <= btn_c_s1;
-        btn_r_s0 <= btn_r; btn_r_s1 <= btn_r_s0; btn_r_s2 <= btn_r_s1;
-    end
-end
+sincronizador sync_btnr (
+    .clk  (clk),
+    .rst  (rst),
+    .din  (btn_r),
+    .dout (btn_r_sync)
+);
 
 // ============================================================
-// Debounce para botones
-// NOTA: En simulación usamos 9 ciclos para ver resultados
-//       rápido. Para síntesis en FPGA cambiar a 1_999_999
+// Instancias de debounce (uno por botón)
 // ============================================================
-reg [20:0] db_cnt_c, db_cnt_r;
-reg        btn_c_db, btn_r_db;
+debounce db_btnc (
+    .clk   (clk),
+    .rst   (rst),
+    .din   (btn_c_sync),
+    .pulso (btn_c_pulso)
+);
 
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        db_cnt_c <= 0; btn_c_db <= 0;
-    end else begin
-        if (btn_c_s1 != btn_c_db) begin
-            if (db_cnt_c == 21'd9) begin  // <-- cambiar a 1_999_999 para FPGA
-                btn_c_db <= btn_c_s1;
-                db_cnt_c <= 0;
-            end else
-                db_cnt_c <= db_cnt_c + 1;
-        end else
-            db_cnt_c <= 0;
-    end
-end
+debounce db_btnr (
+    .clk   (clk),
+    .rst   (rst),
+    .din   (btn_r_sync),
+    .pulso (btn_r_pulso)
+);
 
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        db_cnt_r <= 0; btn_r_db <= 0;
-    end else begin
-        if (btn_r_s1 != btn_r_db) begin
-            if (db_cnt_r == 21'd9) begin  // <-- cambiar a 1_999_999 para FPGA
-                btn_r_db <= btn_r_s1;
-                db_cnt_r <= 0;
-            end else
-                db_cnt_r <= db_cnt_r + 1;
-        end else
-            db_cnt_r <= 0;
-    end
-end
+// ============================================================
+// Instancia del contador de segundos
+// ============================================================
+seg_counter sc (
+    .clk      (clk),
+    .rst      (rst),
+    .pulso_seg(pulso_seg)
+);
 
 // ============================================================
 // Máquina de estados + lógica de hora
@@ -125,7 +94,7 @@ always @(posedge clk or posedge rst) begin
             else if (estado == SET_MIN) estado <= SET_HOURS;
         end
 
-        // --- Ajuste de hora con switches cuando SW[8]=1 ---
+        // --- Ajuste con switches cuando SW[8]=1 ---
         if (sw[8] && estado == SET_HOURS) begin
             hora_dec <= sw[7:4] > 4'd2 ? 4'd2 : sw[7:4];
             hora_uni <= sw[3:0] > 4'd9 ? 4'd9 : sw[3:0];
@@ -137,17 +106,14 @@ always @(posedge clk or posedge rst) begin
 
         // --- Conteo automático en modo RUN ---
         if (estado == RUN && pulso_seg) begin
-            // Segundos
             if (seg_uni == 4'd9) begin
                 seg_uni <= 0;
                 if (seg_dec == 4'd5) begin
                     seg_dec <= 0;
-                    // Minutos
                     if (min_uni == 4'd9) begin
                         min_uni <= 0;
                         if (min_dec == 4'd5) begin
                             min_dec <= 0;
-                            // Horas
                             if (hora_dec == 4'd2 && hora_uni == 4'd3) begin
                                 hora_dec <= 0; hora_uni <= 0;
                             end else if (hora_uni == 4'd9) begin
