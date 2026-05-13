@@ -291,6 +291,30 @@ top.v
 
 ---
 
+## Recursos utilizados en la FPGA
+
+Reporte de utilización generado por Vivado 2024.1 tras la implementación completa del diseño en la Nexys A7 (Artix-7 xc7a100tcsg324-1).
+
+| Módulo | Slice LUTs | Slice Registers | Block RAM | DSPs |
+|---|---|---|---|---|
+| **top (total)** | **754** | **261** | **90** | **1** |
+| `hour_control` | 157 | 104 | 0 | 0 |
+| `image_generator` | 482 | 99 | 0 | 1 |
+| `VGAController` | 64 | 54 | 0 | 0 |
+| `vram` | 54 | 3 | 90 | 0 |
+
+**Recursos disponibles en la Nexys A7 (Artix-7):**
+
+| Recurso | Usado | Disponible | Utilización |
+|---|---|---|---|
+| Slice LUTs | 754 | 63 400 | ~1% |
+| Slice Registers | 261 | 126 800 | ~1% |
+| Block RAM | 90 | 240 | ~37.5% |
+| DSPs | 1 | 240 | ~1% |
+
+El uso de Block RAM es el más significativo del diseño, ya que la VRAM ocupa 90 bloques para almacenar los 307 200 píxeles del framebuffer en formato RGB444 (12 bits por píxel).
+
+
 ## Evidencia de uso de inteligencia artificial
 
 Durante el desarrollo del proyecto se utilizó inteligencia artificial como herramienta de apoyo para comprender conceptos, analizar alternativas de implementación, revisar módulos Verilog, generar explicaciones técnicas y documentar el funcionamiento de la generación de imagen y la VRAM.
@@ -413,6 +437,48 @@ Las siguientes capturas muestran evidencia del uso de IA durante el proceso de c
 
 #### Captura 35
 ![Prompt IA 35](doc/imgs_ia_p1/35.png)
+
+#### Captura 36
+![Prompt IA 36](doc/imgs_ia_p1/36.png)
+
+#### Captura 37
+![Prompt IA 37](doc/imgs_ia_p1/37.png)
+
+#### Captura 38
+![Prompt IA 38](doc/imgs_ia_p1/38.png)
+
+#### Captura 39
+![Prompt IA 39](doc/imgs_ia_p1/39.png)
+
+#### Captura 40
+![Prompt IA 40](doc/imgs_ia_p1/40.png)
+
+#### Captura 41
+![Prompt IA 41](doc/imgs_ia_p1/41.png)
+
+#### Captura 42
+![Prompt IA 42](doc/imgs_ia_p1/42.png)
+
+#### Captura 43
+![Prompt IA 43](doc/imgs_ia_p1/43.png)
+
+#### Captura 44
+![Prompt IA 44](doc/imgs_ia_p1/44.png)
+
+#### Captura 45
+![Prompt IA 45](doc/imgs_ia_p1/45.png)
+
+#### Captura 46
+![Prompt IA 46](doc/imgs_ia_p1/46.png)
+
+#### Captura 47
+![Prompt IA 47](doc/imgs_ia_p1/47.png)
+
+#### Captura 48
+![Prompt IA 48](doc/imgs_ia_p1/48.png)
+
+#### Captura 49
+![Prompt IA 49](doc/imgs_ia_p1/49.png)
 
 </details>
 
