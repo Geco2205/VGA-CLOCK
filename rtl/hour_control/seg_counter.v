@@ -1,34 +1,38 @@
-// ============================================================
-// Módulo: seg_counter
-// Descripción: Genera un pulso de exactamente un ciclo de
-//              reloj cada segundo.
-// Parámetro:   MAX = ciclos para llegar a 1 segundo
-//              Simulación: 99
-//              FPGA real:  99_999_999 (1s a 100MHz)
-// ============================================================
+`timescale 1ns / 1ps
+
+//! @title  seg_counter - Contador de segundos
+//! @author Keillin Loaisiga
+//!
+//! Genera un pulso de exactamente un ciclo de reloj cada segundo.
+//! Cuenta ciclos de reloj hasta alcanzar el valor MAX y en ese
+//! momento activa pulso_seg por un único ciclo antes de reiniciar.
+//!
+//! Para simulación usar MAX = 99.
+//! Para FPGA Nexys A7 a 100 MHz usar MAX = 99_999_999 (1 segundo).
+
 module seg_counter #(
-    parameter MAX = 27'd99_999_999   // <-- cambiar a 99_999_999 para FPGA
+    parameter MAX = 27'd99_999_999 //! Ciclos de reloj para completar 1 segundo (100 MHz)
 )(
-    input  wire clk,      // Reloj del sistema
-    input  wire rst,      // Reset activo alto
-    output reg  pulso_seg // Pulso de 1 segundo
+    input  wire clk,       //! Reloj del sistema: 100 MHz (Nexys A7)
+    input  wire rst,       //! Reset síncrono activo alto
+    output reg  pulso_seg  //! Pulso de un ciclo activo cada segundo
 );
 
-reg [26:0] cnt;
+    reg [26:0] cnt; //! Contador interno de ciclos de reloj
 
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        cnt       <= 0;
-        pulso_seg <= 0;
-    end else begin
-        if (cnt == MAX) begin
-            cnt       <= 0;
-            pulso_seg <= 1;
+    always @(posedge clk or posedge rst) begin: second_counter
+        if (rst) begin
+            cnt       <= 27'd0;
+            pulso_seg <= 1'b0;
         end else begin
-            cnt       <= cnt + 1;
-            pulso_seg <= 0;
+            if (cnt == MAX) begin
+                cnt       <= 27'd0;
+                pulso_seg <= 1'b1; //! Pulso activo al completar 1 segundo
+            end else begin
+                cnt       <= cnt + 27'd1;
+                pulso_seg <= 1'b0;
+            end
         end
     end
-end
 
 endmodule
