@@ -1,42 +1,37 @@
-// ============================================================
-// Módulo: digit_renderer
-// Propósito:
-//   Genera la capa frontal de la escena VGA. Esta capa contiene
-//   la bandeja, las salchichas, las salsas y los dígitos del
-//   reloj en formato HH:MM:SS.
-//
-// Uso dentro del sistema:
-//   Se evalúa el píxel indicado por px/py y se entrega fg_active
-//   cuando algún elemento de esta capa debe quedar sobre el fondo.
-//   El color de salida usa formato RGB444.
-// ============================================================
+//! @title digit_renderer
+//! @author Nicole Irina Corrales Rodríguez
+//! @brief Renderiza la hora digital y la bandeja frontal de la imagen VGA.
+//!
+//! El módulo usa una fuente bitmap de 7x10 escalada para dibujar HH:MM:SS. También
+//! genera elementos gráficos de primer plano, como la bandeja y detalles decorativos.
+//! fg_active indica que el píxel de salida debe tener prioridad sobre capas inferiores.
 module digit_renderer (
-    input  wire [9:0]  px,
-    input  wire [8:0]  py,
-    input  wire [3:0]  hora_dec,
-    input  wire [3:0]  hora_uni,
-    input  wire [3:0]  min_dec,
-    input  wire [3:0]  min_uni,
-    input  wire [3:0]  seg_dec,
-    input  wire [3:0]  seg_uni,
-    input  wire        blink,
-    input  wire        blink_hours,
-    input  wire        blink_mins,
-    output reg         fg_active,
-    output reg  [11:0] fg_color
+    input  wire [9:0]  px, //! Coordenada horizontal del píxel evaluado.
+    input  wire [8:0]  py, //! Coordenada vertical del píxel evaluado.
+    input  wire [3:0]  hora_dec, //! Decena de la hora mostrada en pantalla.
+    input  wire [3:0]  hora_uni, //! Unidad de la hora mostrada en pantalla.
+    input  wire [3:0]  min_dec, //! Decena de los minutos mostrados en pantalla.
+    input  wire [3:0]  min_uni, //! Unidad de los minutos mostrados en pantalla.
+    input  wire [3:0]  seg_dec, //! Decena de los segundos mostrados en pantalla.
+    input  wire [3:0]  seg_uni, //! Unidad de los segundos mostrados en pantalla.
+    input  wire        blink, //! Señal periódica usada para ocultar o mostrar campos en edición.
+    input  wire        blink_hours, //! Habilita parpadeo del campo de horas.
+    input  wire        blink_mins, //! Habilita parpadeo del campo de minutos.
+    output reg         fg_active, //! Indica que el píxel pertenece a la capa frontal.
+    output reg  [11:0] fg_color //! Color RGB444 asignado a la capa frontal.
 );
 
 // ============================================================
-// Parámetros de tipografía y ubicación del reloj
+// Parámetros dígitos
 // ============================================================
-localparam DIGIT_W  = 7;
-localparam DIGIT_H  = 10;
-localparam SCALE    = 3;                 // 5→3: dígitos más delgados
-localparam DIGIT_SW = DIGIT_W * SCALE;  // 21px por dígito
-localparam DIGIT_SH = DIGIT_H * SCALE;  // 30px de alto
-localparam DIGIT_X0 = 250;              // centrado en el plato (x≈320)
-localparam DIGIT_Y0 = 375;              // posición vertical en el plato
-localparam COLON_W  = 7;               // proporcional al nuevo SCALE
+localparam DIGIT_W  = 7; //! Ancho de la fuente bitmap base.
+localparam DIGIT_H  = 10; //! Alto de la fuente bitmap base.
+localparam SCALE    = 3; //! Factor de escala aplicado a cada celda de la fuente.
+localparam DIGIT_SW = DIGIT_W * SCALE; //! Ancho final de cada dígito escalado.
+localparam DIGIT_SH = DIGIT_H * SCALE; //! Alto final de cada dígito escalado.
+localparam DIGIT_X0 = 250; //! Coordenada horizontal inicial del reloj.
+localparam DIGIT_Y0 = 375; //! Coordenada vertical inicial del reloj.
+localparam COLON_W  = 7; //! Separación horizontal reservada para los dos puntos.
 
 localparam X_HD = DIGIT_X0;
 localparam X_HU = DIGIT_X0 + DIGIT_SW;
@@ -48,11 +43,10 @@ localparam X_SD = DIGIT_X0 + DIGIT_SW*4 + COLON_W*2;
 localparam X_SU = DIGIT_X0 + DIGIT_SW*5 + COLON_W*2;
 
 // ============================================================
-// Bandeja plateada
+// Bandeja plateada - aritmética explícita de 40 bits
 // ============================================================
-// Las elipses se calculan con aritmética explícita de 40 bits.
-// Esto evita recortes o saturaciones por inferencias de ancho
-// cuando se sintetiza el diseño en Vivado.
+// FIX: en_elipse_t sin tipo de retorno → Vivado evalúa en 1 bit
+// → siempre retorna 1 → bandeja cubre toda la pantalla.
 wire [9:0]  b_dx   = (px >= 10'd320) ? (px - 10'd320) : (10'd320 - px);
 
 // bandeja7: cx=320 cy=400 rx=210 ry=52  RHS=119_246_400
@@ -91,11 +85,9 @@ wire bandeja_int   = bandeja4 && !bandeja3;
 wire bandeja_core  = bandeja3;
 
 // ============================================================
-// Salchichas sobre la bandeja
+// Salchichas en bandeja - aritmética explícita de 40 bits
+// FIX: en_sal sin tipo de retorno → mismo bug que en_elipse_t
 // ============================================================
-// Cada salchicha se modela como una elipse independiente. Se
-// mantiene el cálculo expandido para controlar el ancho de datos
-// usado por el sintetizador.
 // s1: cx=208 cy=382 rx=34 ry=10  RHS=34²×10²=115_600
 wire [9:0]  s1_dx=(px>=10'd208)?(px-10'd208):(10'd208-px);
 wire [9:0]  s1_dy=(py>=9'd382) ?(py-9'd382) :(9'd382-py);
@@ -133,8 +125,9 @@ wire m3 = (py == 9'd402) && (px >= 10'd249 && px <= 10'd271);
 wire m4 = (py == 9'd400) && (px >= 10'd369 && px <= 10'd391);
 
 // ============================================================
-// Fuente bitmap 7x10 para los dígitos decimales
+// Fuente bitmap 7x10 para dígitos
 // ============================================================
+//! @brief Devuelve la fila de la fuente bitmap asociada a un dígito decimal.
 function [6:0] font_row;
     input [3:0] digit;
     input [3:0] row;
@@ -226,8 +219,9 @@ function [6:0] font_row;
 endfunction
 
 // ============================================================
-// Detección de píxel activo dentro de un dígito escalado
+// Función para detectar píxel de dígito
 // ============================================================
+//! @brief Determina si la coordenada actual pertenece a un dígito escalado.
 function pixel_in_digit;
     input [9:0] ppx, x_start;
     input [8:0] ppy;
@@ -254,7 +248,8 @@ function pixel_in_digit;
     end
 endfunction
 
-// Separadores ':' del formato HH:MM:SS
+// Dos puntos
+//! @brief Determina si la coordenada actual pertenece a los dos puntos del reloj.
 function pixel_in_colon;
     input [9:0] ppx, x_start;
     input [8:0] ppy;
@@ -274,14 +269,15 @@ function pixel_in_colon;
 endfunction
 
 // ============================================================
-// Selección final de color por prioridad de capas
+// Color final con prioridad
 // ============================================================
+//! @brief Selecciona la capa frontal y su color final para la coordenada evaluada.
 always @(*) begin
     fg_active = 1'b1;
 
-    // Dígitos del reloj.
-    // Horas y minutos cambian a rojo durante edición; segundos
-    // y separadores permanecen en negro.
+    // ── Dígitos ──────────────────────────────────────────────
+    // Horas y minutos: negro normal, ROJO KETCHUP al parpadear
+    // Segundos y dos puntos: siempre negro
     if (pixel_in_digit(px, X_HD, py, hora_dec, blink_hours, blink) ||
         pixel_in_digit(px, X_HU, py, hora_uni, blink_hours, blink))
         fg_color = blink_hours ? 12'hF00 : 12'h000;  // ketchup al editar horas

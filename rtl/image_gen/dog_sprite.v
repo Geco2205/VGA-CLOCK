@@ -1,26 +1,19 @@
-// ============================================================
-// Módulo: dog_sprite
-// Propósito:
-//   Genera el sprite del perro dentro de la escena. El dibujo se
-//   construye con regiones geométricas simples para evitar memoria
-//   adicional de imagen.
-//
-// Rango aproximado en pantalla:
-//   x = 400..530, y = 140..370
-//
-// Salida:
-//   dog_active indica si el píxel pertenece al sprite. dog_color
-//   entrega el color RGB444 correspondiente.
-// ============================================================
+//! @title dog_sprite
+//! @author Nicole Irina Corrales Rodríguez
+//! @brief Dibuja el sprite del perro y sus elementos decorativos dentro de la escena.
+//!
+//! El sprite se forma mediante regiones geométricas definidas por px y py. Incluye
+//! cuerpo, cabeza, delantal, gorro, pinzas y una lata decorativa. dog_active se
+//! activa únicamente cuando la coordenada pertenece a algún elemento visible.
 module dog_sprite (
-    input  wire [9:0]  px,
-    input  wire [8:0]  py,
-    output reg         dog_active,
-    output reg  [11:0] dog_color
+    input  wire [9:0]  px, //! Coordenada horizontal del píxel evaluado.
+    input  wire [8:0]  py, //! Coordenada vertical del píxel evaluado.
+    output reg         dog_active, //! Indica que el píxel pertenece al sprite del perro.
+    output reg  [11:0] dog_color //! Color RGB444 asignado al píxel activo del sprite.
 );
 
 // ============================================================
-// Paleta local del sprite
+// Colores del perrito
 // ============================================================
 localparam COL_CAFE_OSC  = 12'h852; // cuerpo oscuro
 localparam COL_CAFE_MED  = 12'hA63; // cuerpo medio
@@ -36,8 +29,9 @@ localparam COL_PINZA     = 12'h888; // pinzas metal
 localparam COL_GORRO     = 12'hFFF; // gorro blanco
 
 // ============================================================
-// Función auxiliar para regiones circulares
+// Funciones helper - distancia²
 // ============================================================
+//! @brief Calcula distancia cuadrática para regiones circulares del sprite.
 function [19:0] dist2;
     input [9:0] x1, x2;
     input [8:0] y1, y2;
@@ -50,10 +44,10 @@ function [19:0] dist2;
 endfunction
 
 // ============================================================
-// Regiones del sprite en coordenadas absolutas de pantalla
+// Zonas del perrito (coordenadas absolutas en pantalla)
 // ============================================================
 
-// Patas traseras
+// --- PATAS TRASERAS ---
 wire pata_izq = (px >= 10'd418 && px <= 10'd434) &&
                 (py >= 9'd318 && py <= 9'd360);
 wire pata_der = (px >= 10'd458 && px <= 10'd474) &&
@@ -63,9 +57,10 @@ wire pata_izq_pie = (px >= 10'd414 && px <= 10'd438) &&
 wire pata_der_pie = (px >= 10'd454 && px <= 10'd478) &&
                     (py >= 9'd355 && py <= 9'd363);
 
-// Cuerpo principal.
-// Se usa una elipse para controlar mejor la silueta vertical del
-// personaje y reducir el ancho ocupado en pantalla.
+// --- CUERPO ---
+// Cuerpo - elipse en lugar de círculo para silueta más delgada
+// Centro (454, 287). Antes: círculo r≈66px (132px ancho).
+// Ahora: bx=50 horizontal, by=78 vertical → 100px ancho (24% más delgado).
 wire [9:0]  dog_dx  = (px >= 10'd454) ? (px - 10'd454) : (10'd454 - px);
 wire [9:0]  dog_dy  = (py >= 9'd287)  ? (py - 9'd287)  : (9'd287  - py);
 
@@ -86,12 +81,12 @@ wire [39:0] pz_lhs  = ({30'h0,pz_dx}*{30'h0,pz_dx}*40'd1444)
                     + ({30'h0,pz_dy}*{30'h0,pz_dy}*40'd676);
 wire panza = (pz_lhs < 40'd976_144);
 
-// Cola
+// --- COLA ---
 wire cola = (px >= 10'd400 && px <= 10'd418) &&
             (py >= 9'd200 && py <= 9'd270) &&
             (px + py >= 10'd610) && (px + py <= 10'd670);
 
-// Delantal
+// --- DELANTAL BLANCO ---
 wire delantal = (px >= 10'd430 && px <= 10'd478) &&
                 (py >= 9'd247 && py <= 9'd329);
 wire delantal_tira_izq = (px >= 10'd436 && px <= 10'd445) &&
@@ -107,17 +102,17 @@ wire delantal_linea3 = (py == 9'd318) &&
 wire bolsillo = (px >= 10'd434 && px <= 10'd454) &&
                 (py >= 9'd300 && py <= 9'd318);
 
-// Brazo izquierdo
+// --- BRAZO IZQUIERDO (hacia abajo con cerveza) ---
 wire brazo_izq = (px >= 10'd402 && px <= 10'd432) &&
                  (py >= 9'd258 && py <= 9'd322) &&
                  (px + py >= 10'd668) && (px + py <= 10'd745);
 
-// Brazo derecho
+// --- BRAZO DERECHO (hacia arriba con pinzas) ---
 wire brazo_der = (px >= 10'd476 && px <= 10'd530) &&
                  (py >= 9'd155 && py <= 9'd252) &&
                  ((px - 10'd476) + (9'd252 - py) < 10'd80);
 
-// Pinzas y mango del utensilio
+// --- PINZAS + MANGO DEL PINCHO -----------------------------------------
 wire pinza_izq_pal = (px >= 10'd510 && px <= 10'd516) &&
                      (py >= 9'd118 && py <= 9'd158);
 wire pinza_der_pal = (px >= 10'd522 && px <= 10'd528) &&
@@ -126,11 +121,11 @@ wire pinza_izq_cab = (dist2(px, 10'd513, py, 9'd118) < 20'd64);
 wire pinza_der_cab = (dist2(px, 10'd525, py, 9'd118) < 20'd64);
 wire pinza_union   = (px >= 10'd514 && px <= 10'd524) &&
                      (py >= 9'd148 && py <= 9'd158);
-// Segmento que une las pinzas con el brazo derecho.
+// Mango largo que conecta pinzas (y=158) con el brazo derecho (y≈225)
 wire pinza_mango   = (px >= 10'd516 && px <= 10'd522) &&
                      (py >= 9'd155 && py <= 9'd228);
 
-// Orejas, dibujadas detrás de la cabeza
+// --- OREJAS (detrás de la cabeza) ---
 wire oreja_izq = (px >= 10'd406 && px <= 10'd430) &&
                  (py >= 9'd198 && py <= 9'd260) &&
                  (px + py <= 10'd660);
@@ -138,11 +133,11 @@ wire oreja_der = (px >= 10'd478 && px <= 10'd502) &&
                  (py >= 9'd195 && py <= 9'd252) &&
                  (px - py >= 10'd228);
 
-// Cabeza
+// --- CABEZA ---
 wire cabeza = dist2(px, 10'd454, py, 9'd204) < 20'd2500;
 wire cabeza_top = dist2(px, 10'd454, py, 9'd190) < 20'd1600;
 
-// Hocico
+// --- HOCICO ---
 wire hocico_ext = dist2(px, 10'd476, py, 9'd214) < 20'd900;
 wire hocico_int = dist2(px, 10'd479, py, 9'd217) < 20'd576;
 wire nariz = dist2(px, 10'd494, py, 9'd208) < 20'd64;
@@ -150,32 +145,31 @@ wire boca1 = (px >= 10'd480 && px <= 10'd488) && (py == 9'd220);
 wire boca2 = (px >= 10'd488 && px <= 10'd496) && (py == 9'd222);
 wire lengua = dist2(px, 10'd489, py, 9'd230) < 20'd100;
 
-// Ojo
+// --- OJO ---
 wire ojo_ext = dist2(px, 10'd446, py, 9'd200) < 20'd121;
 wire ojo_int = dist2(px, 10'd446, py, 9'd200) < 20'd64;
 wire ojo_bri = dist2(px, 10'd448, py, 9'd196) < 20'd16;
 wire ceja    = (py == 9'd191) && (px >= 10'd438 && px <= 10'd455);
 
-// Gorro de chef
-// Ala del gorro sobre la frente
+// --- GORRO DE CHEF - más alto y subido, con líneas verticales --------
+// Ala (brim) ancha - descansa sobre la frente
 wire gorro_base  = (px >= 10'd422 && px <= 10'd486) &&
                    (py >= 9'd156 && py <= 9'd168);
-// Cuerpo principal del gorro
+// Cuerpo alto rectangular (68px de alto, forma de chef clásico)
 wire gorro_top   = (px >= 10'd434 && px <= 10'd474) &&
                    (py >= 9'd88  && py <= 9'd156);
-// Separación entre ala y cuerpo del gorro
+// Línea divisoria ala/cuerpo
 wire gorro_linea = (py == 9'd156) &&
                    (px >= 10'd423 && px <= 10'd485);
-// Líneas internas para dar detalle al gorro
+// Líneas verticales decorativas grises dentro del cuerpo
 wire gorro_v_lines = gorro_top &&
                      (px == 10'd441 || px == 10'd449 || px == 10'd457 ||
                       px == 10'd465 || px == 10'd473);
 
 // ============================================================
-// Botella decorativa
+// BOTELLA HEINEKEN
+// Centro x≈397, posición y=258-338
 // ============================================================
-// Elemento sostenido por el brazo izquierdo. Se compone de cuello,
-// cuerpo, etiqueta, estrella, base y detalles superiores.
 // Tapón dorado
 wire lata_tapa      = (px >= 10'd393 && px <= 10'd401) && (py >= 9'd258 && py <= 9'd265);
 // Cuello verde oscuro (estrecho)
@@ -186,7 +180,7 @@ wire lata_hombro    = (px >= 10'd385 && px <= 10'd409) && (py >= 9'd285 && py <=
 wire lata_body      = (px >= 10'd383 && px <= 10'd411) && (py >= 9'd293 && py <= 9'd336);
 // Etiqueta roja Heineken (franja central)
 wire lata_roja      = (px >= 10'd383 && px <= 10'd411) && (py >= 9'd300 && py <= 9'd322);
-// Estrella de la etiqueta
+// Estrella Heineken (5 píxeles en cruz + diagonales)
 wire aguila_cuerpo  = (px == 10'd397) && (py >= 9'd306 && py <= 9'd316);
 wire aguila_cabeza  = (py == 9'd311) && (px >= 10'd392 && px <= 10'd402);
 wire aguila_ala_izq = (px == 10'd393) && (py >= 9'd308 && py <= 9'd314);
@@ -207,8 +201,7 @@ wire lata_espuma3 = dist2(px, 10'd403, py, 9'd253) < 20'd25;
 // ============================================================
 // Prioridad de capas y color final
 // ============================================================
-// Las condiciones se ordenan desde los detalles frontales hasta
-// las regiones de fondo del sprite.
+//! @brief Selecciona la parte visible del perro y entrega el color correspondiente.
 always @(*) begin
     dog_active = 1'b1;
     // Capas en orden de prioridad (primero = encima)

@@ -1,62 +1,58 @@
-// ============================================================
-// Módulo: image_generator
-// Propósito:
-//   Genera el framebuffer completo de la escena VGA y lo escribe
-//   en la VRAM. Para formar cada píxel combina fondo, parrilla,
-//   perro y capa frontal del reloj.
-//
-// Nota de interfaz:
-//   pixel_x, pixel_y y video_on se conservan para mantener la
-//   conexión con el módulo top y el controlador VGA. La escritura
-//   de VRAM usa el barrido interno px/py definido en este módulo.
-// ============================================================
+//! @title image_generator
+//! @author Nicole Irina Corrales Rodríguez
+//! @brief Genera el framebuffer visual y escribe los píxeles en la VRAM.
+//!
+//! Este bloque integra el fondo, los sprites, el renderizador de dígitos y el control
+//! de parpadeo. Recorre internamente la pantalla visible y decide el color final de
+//! cada píxel según prioridad de capas antes de escribirlo en memoria de video.
 module image_generator (
-    input  wire        clk,
-    input  wire        rst,
-    input  wire [3:0]  hora_dec,
-    input  wire [3:0]  hora_uni,
-    input  wire [3:0]  min_dec,
-    input  wire [3:0]  min_uni,
-    input  wire [3:0]  seg_dec,
-    input  wire [3:0]  seg_uni,
-    input  wire [1:0]  estado,
-    output reg  [18:0] wr_addr,
-    output reg  [11:0] wr_data,
-    output reg         wr_en,
-    input  wire [9:0]  pixel_x,
-    input  wire [8:0]  pixel_y,
-    input  wire        video_on
+    input  wire        clk, //! Reloj usado para recorrer la pantalla y escribir en VRAM.
+    input  wire        rst, //! Reinicio del barrido interno y señales de escritura.
+    input  wire [3:0]  hora_dec, //! Decena de la hora que se enviará al renderizador.
+    input  wire [3:0]  hora_uni, //! Unidad de la hora que se enviará al renderizador.
+    input  wire [3:0]  min_dec, //! Decena de los minutos que se enviará al renderizador.
+    input  wire [3:0]  min_uni, //! Unidad de los minutos que se enviará al renderizador.
+    input  wire [3:0]  seg_dec, //! Decena de los segundos que se enviará al renderizador.
+    input  wire [3:0]  seg_uni, //! Unidad de los segundos que se enviará al renderizador.
+    input  wire [1:0]  estado, //! Estado de edición recibido desde el control de hora.
+    output reg  [18:0] wr_addr, //! Dirección lineal de escritura hacia la VRAM.
+    output reg  [11:0] wr_data, //! Color RGB444 escrito en la VRAM.
+    output reg         wr_en, //! Habilitación de escritura del framebuffer.
+    input  wire [9:0]  pixel_x, //! Coordenada horizontal del controlador VGA; no gobierna el barrido interno.
+    input  wire [8:0]  pixel_y, //! Coordenada vertical del controlador VGA; no gobierna el barrido interno.
+    input  wire        video_on //! Indicador de zona visible del controlador VGA; se conserva por interfaz.
 );
 
-localparam SCREEN_W = 640;
-localparam SCREEN_H = 480;
+localparam SCREEN_W = 640; //! Ancho visible del framebuffer VGA.
+localparam SCREEN_H = 480; //! Alto visible del framebuffer VGA.
 
 // ============================================================
-// Señales internas de composición y escritura
+// Señales internas
 // ============================================================
-wire        blink;
-wire [15:0] star_blink;
-wire        blink_hours;
-wire        blink_mins;
+wire        blink; //! Parpadeo general generado por blink_ctrl.
+wire [15:0] star_blink; //! Máscara de variación para elementos del fondo.
+wire        blink_hours; //! Selección de parpadeo para horas.
+wire        blink_mins; //! Selección de parpadeo para minutos.
 
-wire [11:0] bg_color;
+wire [11:0] bg_color; //! Color de la capa de fondo.
 
-wire        dog_active;
-wire [11:0] dog_color;
+wire        dog_active; //! Indica píxel activo del sprite del perro.
+wire [11:0] dog_color; //! Color del sprite del perro.
 
-wire        grill_active;
-wire [11:0] grill_color;
+wire        grill_active; //! Indica píxel activo del sprite de la parrilla.
+wire [11:0] grill_color; //! Color del sprite de la parrilla.
 
-wire        fg_active;
-wire [11:0] fg_color;
+wire        fg_active; //! Indica píxel activo de la capa frontal.
+wire [11:0] fg_color; //! Color de la capa frontal.
 
-// Barrido interno usado para recorrer las 640x480 posiciones.
-reg [9:0] px;
-reg [8:0] py;
+// Contador de píxeles interno
+reg [9:0] px; //! Contador horizontal interno usado para llenar la VRAM.
+reg [8:0] py; //! Contador vertical interno usado para llenar la VRAM.
 
 // ============================================================
-// Submódulos gráficos usados para formar la escena
+// Instancias de submódulos
 // ============================================================
+//! @brief Instancia encargada de generar parpadeo para edición y fondo.
 blink_ctrl bc (
     .clk        (clk),
     .rst        (rst),
@@ -67,6 +63,7 @@ blink_ctrl bc (
     .blink_mins (blink_mins)
 );
 
+//! @brief Instancia que genera la capa de fondo de la escena.
 sky_background sb (
     .clk        (clk),
     .rst        (rst),
@@ -76,6 +73,7 @@ sky_background sb (
     .bg_color   (bg_color)
 );
 
+//! @brief Instancia del sprite de la parrilla.
 grill_sprite gs (
     .px          (px),
     .py          (py),
@@ -83,6 +81,7 @@ grill_sprite gs (
     .grill_color (grill_color)
 );
 
+//! @brief Instancia del sprite del perro.
 dog_sprite ds (
     .px        (px),
     .py        (py),
@@ -90,6 +89,7 @@ dog_sprite ds (
     .dog_color (dog_color)
 );
 
+//! @brief Instancia del renderizador de hora y elementos de primer plano.
 digit_renderer dr (
     .px         (px),
     .py         (py),
@@ -107,10 +107,10 @@ digit_renderer dr (
 );
 
 // ============================================================
-// Escritura secuencial del framebuffer en VRAM
+// Pipeline de escritura en VRAM
+// Prioridad: dígitos/bandeja > perrito > parrilla > fondo
 // ============================================================
-// Orden de prioridad visual:
-//   capa frontal del reloj > perro > parrilla > fondo.
+//! @brief Recorre el framebuffer, calcula la prioridad de capas y escribe en VRAM.
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         px      <= 0;
@@ -122,7 +122,7 @@ always @(posedge clk or posedge rst) begin
         wr_en   <= 1;
         wr_addr <= py * SCREEN_W + px;
 
-        // Selección del color final según la capa activa.
+        // Prioridad de capas
         if (fg_active)
             wr_data <= fg_color;       // bandeja + dígitos (capa más alta)
         else if (dog_active)
@@ -132,7 +132,7 @@ always @(posedge clk or posedge rst) begin
         else
             wr_data <= bg_color;       // fondo atardecer
 
-        // Avance del barrido interno de escritura.
+        // Avanzar píxel
         if (px == SCREEN_W - 1) begin
             px <= 0;
             py <= (py == SCREEN_H - 1) ? 9'd0 : py + 1;

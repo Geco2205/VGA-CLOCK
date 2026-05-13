@@ -1,26 +1,21 @@
-// ============================================================
-// Módulo: grill_sprite
-// Propósito:
-//   Genera el sprite de la parrilla usando comparaciones de píxel
-//   y regiones geométricas. No utiliza memoria de imagen externa.
-//
-// Posición aproximada:
-//   centro x = 196, y = 295
-//
-// Salida:
-//   grill_active indica si el píxel pertenece al sprite.
-//   grill_color entrega el color RGB444 de la región activa.
-// ============================================================
+//! @title grill_sprite
+//! @author Nicole Irina Corrales Rodríguez
+//! @brief Dibuja el sprite de la parrilla usado en la escena VGA.
+//!
+//! La figura se construye con comparaciones de coordenadas, elipses y regiones
+//! rectangulares. La salida grill_active indica si el píxel pertenece al sprite y
+//! grill_color entrega el color RGB444 correspondiente.
 module grill_sprite (
-    input  wire [9:0]  px,
-    input  wire [8:0]  py,
-    output reg         grill_active,
-    output reg  [11:0] grill_color
+    input  wire [9:0]  px, //! Coordenada horizontal del píxel evaluado.
+    input  wire [8:0]  py, //! Coordenada vertical del píxel evaluado.
+    output reg         grill_active, //! Indica que el píxel pertenece a la parrilla.
+    output reg  [11:0] grill_color //! Color RGB444 asignado al píxel activo del sprite.
 );
 
 // ============================================================
-// Función auxiliar para distancia al cuadrado
+// Funciones helper
 // ============================================================
+//! @brief Calcula distancia cuadrática entre dos puntos de pantalla.
 function [19:0] dist2;
     input [9:0] x1, x2;
     input [8:0] y1, y2;
@@ -32,13 +27,13 @@ function [19:0] dist2;
     end
 endfunction
 
-// Las elipses se dejan expandidas en señales de 40 bits para
-// controlar el ancho de los productos durante síntesis.
+// en_elipse eliminada - reemplazada por wires explícitos de 40 bits
+// (bug: retorno 1-bit → siempre 1 en Vivado)
 
 // ============================================================
-// Componentes principales de la parrilla
+// Componentes de la parrilla
 // ============================================================
-// Tazón de la parrilla, modelado con elipses concéntricas.
+// Elipses del tazón - cx=196, cy=295, aritmética 40 bits
 wire [9:0]  g_dx   = (px>=10'd196)?(px-10'd196):(10'd196-px);
 wire [9:0]  g_dy   = (py>=9'd295) ?(py-9'd295) :(9'd295-py);
 // rx=62,ry=20 → RHS=62²×20²=1_537_600
@@ -111,8 +106,8 @@ wire pata_izq_g = (px >= 10'd156 && px <= 10'd163) &&
                   (py >= 9'd310 && py <= 9'd363) &&
                   (px + py >= 10'd473);
 
-// Patas inclinadas. Las comparaciones se expresan sin constantes
-// negativas para evitar errores de ancho o underflow.
+// FIX: era (px <= py + 10'd10'd(-80)) - sintaxis inválida.
+// Equivalente correcto: px <= py - 80, protegido contra underflow.
 wire pata_der_g = (px >= 10'd229 && px <= 10'd236) &&
                   (py >= 9'd310 && py <= 9'd363) &&
                   (py >= 9'd80) && (px <= py - 9'd80);
@@ -131,8 +126,9 @@ wire humo3 = (px == 10'd214) && (py >= 9'd215 && py <= 9'd270) &&
              ((py - 9'd215) % 4 < 2);
 
 // ============================================================
-// Selección de color por prioridad visual
+// Color final con prioridad
 // ============================================================
+//! @brief Activa el sprite y asigna color de acuerdo con la figura detectada.
 always @(*) begin
     grill_active = 1'b1;
 

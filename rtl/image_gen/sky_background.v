@@ -1,28 +1,22 @@
-// ============================================================
-// Módulo: sky_background
-// Propósito:
-//   Genera el fondo de la escena VGA: cielo por bandas, sol,
-//   nubes, pájaros y colinas. El color se entrega en RGB444.
-//
-// Criterio de diseño:
-//   La paleta del cielo se calcula con comparaciones fijas por
-//   banda vertical para reducir lógica aritmética y evitar artefactos
-//   por ancho de datos durante síntesis.
-// ============================================================
+//! @title sky_background
+//! @author Nicole Irina Corrales Rodríguez
+//! @brief Genera el fondo gráfico del sistema VGA a partir de coordenadas de píxel.
+//!
+//! El módulo dibuja el cielo, sol, nubes, pájaros y colinas mediante condiciones
+//! combinacionales sobre px y py. La salida bg_color corresponde al color RGB444
+//! de la capa de fondo para la coordenada evaluada.
 module sky_background (
-    input  wire        clk,
-    input  wire        rst,
-    input  wire [9:0]  px,
-    input  wire [8:0]  py,
-    input  wire [15:0] star_blink,
-    output reg  [11:0] bg_color
+    input  wire        clk, //! Reloj recibido por interfaz; el fondo se calcula de forma combinacional.
+    input  wire        rst, //! Reinicio recibido por interfaz; no modifica la lógica combinacional del fondo.
+    input  wire [9:0]  px, //! Coordenada horizontal del píxel evaluado.
+    input  wire [8:0]  py, //! Coordenada vertical del píxel evaluado.
+    input  wire [15:0] star_blink, //! Máscara disponible para variaciones visuales del fondo.
+    output reg  [11:0] bg_color //! Color RGB444 generado para la capa de fondo.
 );
 
 // ============================================================
-// Sol
+// Sol - centrado en x=320, y=210 (subido desde y=296)
 // ============================================================
-// Se dibuja con tres radios para obtener centro, corona media y
-// halo exterior.
 wire [9:0]  sol_dx   = (px >= 10'd320) ? (px - 10'd320) : (10'd320 - px);
 wire [9:0]  sol_dy   = (py >= 9'd210)  ? (py - 9'd210)  : (9'd210  - py);
 wire [19:0] sol_d2   = sol_dx*sol_dx + sol_dy*sol_dy;
@@ -31,7 +25,7 @@ wire sol_mid         = sol_d2 < 20'd2500;   // r=50
 wire sol_outer       = sol_d2 < 20'd5625;   // r=75
 
 // ============================================================
-// Colinas del horizonte
+// Colinas laterales
 // ============================================================
 wire [9:0] cil_h  = (px < 10'd90) ? (10'd90 - px) : (px - 10'd90);
 wire colina_izq   = (px <= 10'd265) && (py > 9'd340) &&
@@ -47,10 +41,8 @@ wire colina_cen   = (px > 10'd200) && (px < 10'd440) &&
                     (py > (9'd390 - cen_h[9:1]));
 
 // ============================================================
-// Nubes
+// Nubes - tres nubes blancas, rectángulos escalonados
 // ============================================================
-// Cada nube se arma con rectángulos escalonados para conservar
-// formas simples y sintetizables.
 wire nube1 = ((px >= 10'd50  && px <= 10'd200) && (py >= 9'd42 && py <= 9'd54)) ||
              ((px >= 10'd70  && px <= 10'd180) && (py >= 9'd32 && py <= 9'd42)) ||
              ((px >= 10'd92  && px <= 10'd158) && (py >= 9'd23 && py <= 9'd32));
@@ -64,9 +56,8 @@ wire nube3 = ((px >= 10'd520 && px <= 10'd628) && (py >= 9'd72 && py <= 9'd82)) 
              ((px >= 10'd552 && px <= 10'd596) && (py >= 9'd56 && py <= 9'd63));
 
 // ============================================================
-// Pájaros
+// Pájaros - V shapes de 6px
 // ============================================================
-// Figuras pequeñas en forma de V, definidas punto a punto.
 wire pajaro1 = ((px==10'd78)&&(py==9'd112))||((px==10'd79)&&(py==9'd111))||
                ((px==10'd80)&&(py==9'd110))||((px==10'd81)&&(py==9'd110))||
                ((px==10'd82)&&(py==9'd111))||((px==10'd83)&&(py==9'd112));
@@ -80,25 +71,24 @@ wire pajaro3 = ((px==10'd554)&&(py==9'd102))||((px==10'd555)&&(py==9'd101))||
                ((px==10'd558)&&(py==9'd101))||((px==10'd559)&&(py==9'd102));
 
 // ============================================================
-// Paleta del cielo por bandas verticales
-// ============================================================
-// py 0-35    : azul profundo
-// py 36-70   : azul medio
-// py 71-100  : azul claro
-// py 101-130 : azul-lavanda
-// py 131-160 : lavanda-rosado
-// py 161-190 : rosado-salmón
-// py 191-220 : naranja-rosa
-// py 221-260 : naranja
-// py 261-300 : naranja-amarillo
-// py 301-340 : amarillo suave
-// py 341+    : verde suelo
+// Paleta de cielo - 11 bandas FIJAS, sin aritmética
+// py 0-35   : azul profundo
+// py 36-70  : azul medio
+// py 71-100 : azul claro
+// py 101-130: azul-lavanda
+// py 131-160: lavanda-rosado
+// py 161-190: rosado-salmón
+// py 191-220: naranja-rosa
+// py 221-260: naranja
+// py 261-300: naranja-amarillo (horizonte)
+// py 301-340: amarillo suave
+// py 341+   : verde suelo
 // ============================================================
 
 // ============================================================
-// Selección final de color del fondo
+// Color final - prioridad: nubes > sol > pájaros > colinas > cielo
 // ============================================================
-// Prioridad: nubes > sol > pájaros > colinas > bandas de cielo.
+//! @brief Selecciona el color final del fondo según la prioridad visual definida.
 always @(*) begin
     if (nube1 || nube2 || nube3)
         bg_color = 12'hFFF;
@@ -114,7 +104,7 @@ always @(*) begin
         bg_color = 12'h141;
     else if (colina_cen)
         bg_color = 12'h252;
-    // Bandas del cielo implementadas solo con comparaciones.
+    // Bandas de cielo - comparaciones puras, cero aritmética
     else if (py < 9'd36)
         bg_color = 12'h12B;   // azul profundo
     else if (py < 9'd71)
