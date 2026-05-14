@@ -273,20 +273,39 @@ Pixel clock: 100 MHz dividido entre 4 = 25 MHz
 ## Jerarquía de Módulos
 
 ```text
-top.v
-├── hour_control.v              ← Bloque 1
-│   ├── sincronizador.v  (×2)
-│   ├── debounce.v       (×2)
-│   └── seg_counter.v
-├── image_generator.v           ← Bloque 2
-│   ├── blink_ctrl.v
-│   ├── sky_background.v
-│   ├── grill_sprite.v
-│   ├── dog_sprite.v
-│   └── digit_renderer.v
-├── vram.v                      ← Bloque 3
-└── VGAController.v             ← Bloque 4
-    └── SyncVGA.v
+VGA-CLOCK/
+├── rtl/
+│   ├── top/
+│   │   └── top.v                    ← Integración del sistema
+│   ├── hour_control/                ← Bloque 1
+│   │   ├── hour_control.v
+│   │   ├── sincronizador.v  (×2)
+│   │   ├── debounce.v       (×2)
+│   │   └── seg_counter.v
+│   ├── image_gen/                   ← Bloque 2
+│   │   ├── image_generator.v
+│   │   ├── blink_ctrl.v
+│   │   ├── sky_background.v
+│   │   ├── grill_sprite.v
+│   │   ├── dog_sprite.v
+│   │   └── digit_renderer.v
+│   ├── memory/                      ← Bloque 3
+│   │   └── vram.v
+│   └── vga/                         ← Bloque 4
+│       ├── VGAController.v
+│       └── SyncVGA.v
+├── sim/                             ← Testbenches
+│   ├── tb_VGAController.v
+│   ├── tb_hour_control.v
+│   ├── tb_vram.v
+│   ├── tb_image_generator.v
+│   └── tb_top.v
+├── constraints/
+│   └── constrs.xdc                  ← Mapeo de pines Nexys A7
+├── scripts/
+│   └── run_sim.sh                   ← Automatización de simulaciones
+└── doc/
+    └── imgs_ia_p1/                  ← Evidencia de uso de IA
 ```
 
 ---
@@ -481,6 +500,93 @@ Las siguientes capturas muestran evidencia del uso de IA durante el proceso de c
 ![Prompt IA 49](doc/imgs_ia_p1/49.png)
 
 </details>
+
+---
+
+## Simulación automatizada
+
+### Prerequisitos
+Tener Vivado instalado y activarlo en el PATH:
+```bash
+source ~/Xilinx/2025.1/Vivado/settings64.sh
+```
+
+### Correr todos los testbenches
+Desde el root del repositorio:
+```bash
+bash scripts/run_sim.sh
+```
+
+El script compila, elabora y simula los 5 testbenches en orden e imprime un resumen final:
+```
+======================================================
+  RESUMEN DE SIMULACIONES
+======================================================
+  Total   : 5
+  Pasados : 5
+  Fallidos: 0
+======================================================
+```
+
+---
+
+## Implementación en FPGA
+
+### Prerequisitos
+- Vivado 2024.1 o superior instalado
+- Nexys A7 conectada por USB
+- Cable micro-USB para programación y alimentación
+- Monitor con entrada VGA
+
+### Pasos para sintetizar e implementar
+
+**1. Clonar el repositorio**
+```bash
+git clone https://github.com/Geco2205/VGA-CLOCK.git
+cd VGA-CLOCK
+```
+
+**2. Abrir Vivado y crear un nuevo proyecto**
+- Abrir Vivado → **Create Project**
+- Nombre: `vga_clock` → **Next**
+- Tipo: **RTL Project** → **Next**
+
+**3. Agregar los archivos fuente**
+- **Add Sources → Add Files**
+- Seleccionar todos los `.v` de las carpetas `rtl/`
+- Marcar **Copy sources into project**
+
+**4. Agregar el archivo de constraints**
+- **Add Sources → Add or Create Constraints**
+- Seleccionar `constraints/constrs.xdc`
+
+**5. Seleccionar la FPGA**
+- En **Default Part** buscar: `xc7a100tcsg324-1` (Nexys A7)
+
+**6. Sintetizar e implementar**
+- **Flow Navigator → Run Synthesis** → esperar
+- **Run Implementation** → esperar
+- **Generate Bitstream** → esperar
+
+**7. Programar la FPGA**
+- Conectar la Nexys A7 por USB
+- **Open Hardware Manager → Open Target → Auto Connect**
+- **Program Device** → seleccionar el `.bit` generado → **Program**
+
+**8. Verificar en hardware**
+- Conectar el monitor al puerto VGA de la Nexys A7
+- El reloj arranca en **00:00:00** en modo **RUN**
+
+### Controles en la Nexys A7
+
+| Control | Función |
+|---|---|
+| `BTNC` | Reset general — reinicia el reloj a 00:00:00 |
+| `BTNU` | Avanza estado: RUN → SET\_HOURS → SET\_MIN |
+| `BTNR` | Retrocede estado: RUN → SET\_MIN → SET\_HOURS |
+| `SW[8]` | Activa modo ajuste de hora |
+| `SW[7:4]` | Decenas del campo seleccionado (horas o minutos) |
+| `SW[3:0]` | Unidades del campo seleccionado |
 
 ---
 
